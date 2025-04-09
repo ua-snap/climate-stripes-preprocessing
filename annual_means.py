@@ -27,8 +27,8 @@ scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
 latitude = ds.latitude.data
 longitude = ds.longitude.data
-anomaly_data = np.zeros(
-    (len(years), len(models), len(scenarios), len(latitude), len(longitude))
+anomaly_data = np.full(
+    (len(years), len(models), len(scenarios), len(latitude), len(longitude)), -9999.0, dtype=np.float32
 )
 
 combined_ds = xr.Dataset(
@@ -107,4 +107,4 @@ for model in models[1:]:
                 dict(year=year, model=model, scenario=scenario)
             ] = anomaly
 
-combined_ds.to_netcdf("combined_anomalies.nc", mode="w")
+combined_ds.to_netcdf("combined_anomalies.nc", mode="w", encoding={"anomaly": {"_FillValue": -9999.0}})
