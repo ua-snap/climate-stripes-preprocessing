@@ -110,5 +110,5 @@ for model in models[1:]:
             ] = anomaly
 
 combined_ds.to_netcdf(
-    "combined_anomalies.nc", mode="w", encoding={"anomaly": {"_FillValue": -9999.0}}
+    "temperature_anomalies.nc", mode="w", encoding={"anomaly": {"_FillValue": -9999.0}}
 )
