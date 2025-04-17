@@ -2,7 +2,7 @@
 import xarray as xr
 import numpy as np
 
-ds = xr.open_dataset("berkeley_earth/Land_and_Ocean_LatLong1.nc")
+ds = xr.open_dataset("berkeley_earth/Global_TAVG_Gridded_0p25deg.nc")
 
 years = range(1850, 2100 + 1)
 models = [
