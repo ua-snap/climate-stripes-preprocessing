@@ -97,7 +97,7 @@ for model in models[1:]:
     historical_cmip6_ds = xr.open_dataset(historical_cmip6_file)
     historical_cmip6_ds = historical_cmip6_ds.transpose("time", "lat", "lon")
     cmip6_baseline = historical_cmip6_ds.sel(
-        time=slice("1950-01-01", "1980-12-31")
+        time=slice("1951-01-01", "1980-12-31")
     ).mean(dim="time")
     historical_cmip6_ds.close()
 
