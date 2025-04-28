@@ -2,7 +2,25 @@
 import xarray as xr
 import numpy as np
 
-ds = xr.open_dataset("berkeley_earth/Global_TAVG_Gridded_0p25deg.nc")
+berkeley_ds = xr.open_dataset("berkeley_earth/Global_TAVG_Gridded_0p25deg.nc")
+
+# Get all time intervals in the dataset that start with the most recent year.
+most_recent_year = str(berkeley_ds.time[-1].values).split(".")[0]
+year_month_intervals = [
+    time for time in berkeley_ds.time.values if str(time).startswith(most_recent_year)
+]
+
+# Warn user and drop most recent year if it does not have 12 months.
+if len(year_month_intervals) != 12:
+    berkeley_ds = berkeley_ds.sel(
+        time=berkeley_ds.time.values[
+            ~np.isin(berkeley_ds.time.values, year_month_intervals)
+        ]
+    )
+    print(
+        f"Most recent year ({most_recent_year}) does not have 12 months. "
+        f"Dropping {most_recent_year} from the Berkeley Earth dataset."
+    )
 
 years = range(1850, 2100 + 1)
 models = [
@@ -22,8 +40,8 @@ models = [
 ]
 scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
-latitude = ds.latitude.data
-longitude = ds.longitude.data
+latitude = berkeley_ds.latitude.data
+longitude = berkeley_ds.longitude.data
 
 baseline_data = np.full(
     (len(models), len(latitude), len(longitude)),
@@ -70,12 +88,14 @@ combined_ds = xr.Dataset(
 combined_ds["baseline"].attrs["units"] = "1951-1980 baseline (°C)"
 combined_ds["anomaly"].attrs["units"] = "Delta from 1951-1980 baseline (°C)"
 
-berkeley_baseline = ds.climatology.mean(dim="month_number")
+berkeley_baseline = berkeley_ds.climatology.mean(dim="month_number")
 combined_ds["baseline"].loc[dict(model="Berkeley-Earth")] = berkeley_baseline
 
 for year in years:
-    year_month_intervals = [time for time in ds.time.values if f"{year}." in str(time)]
-    annual_mean_anomaly = ds.sel(time=year_month_intervals)
+    year_month_intervals = [
+        time for time in berkeley_ds.time.values if f"{year}." in str(time)
+    ]
+    annual_mean_anomaly = berkeley_ds.sel(time=year_month_intervals)
     combined_ds["anomaly"].loc[
         dict(year=year, model="Berkeley-Earth", scenario="historical")
     ] = annual_mean_anomaly.temperature.mean(dim="time")
