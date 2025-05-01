@@ -40,6 +40,14 @@ models = [
 ]
 scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
+# Open example CMIP6 file to get minimum latitude.
+cmip6_ds = xr.open_dataset("cmip6/tas_CESM2_historical_mon.nc")
+min_lat = cmip6_ds.lat.min().values
+
+# Crop the berkeley_ds to the same latitude as CMIP6 data.
+berkeley_ds = berkeley_ds.sel(latitude=slice(min_lat, None))
+
+# Use resolution of cropped berkeley_ds for combined dataset.
 latitude = berkeley_ds.latitude.data
 longitude = berkeley_ds.longitude.data
 
@@ -85,9 +93,6 @@ combined_ds = xr.Dataset(
     },
 )
 
-combined_ds["baseline"].attrs["units"] = "1951-1980 baseline (°C)"
-combined_ds["anomaly"].attrs["units"] = "Delta from 1951-1980 baseline (°C)"
-
 berkeley_baseline = berkeley_ds.climatology.mean(dim="month_number")
 combined_ds["baseline"].loc[dict(model="Berkeley-Earth")] = berkeley_baseline
 
@@ -95,22 +100,13 @@ for year in years:
     year_month_intervals = [
         time for time in berkeley_ds.time.values if f"{year}." in str(time)
     ]
-    annual_mean_anomaly = berkeley_ds.sel(time=year_month_intervals)
+    monthly_values = berkeley_ds.sel(time=year_month_intervals)
     combined_ds["anomaly"].loc[
         dict(year=year, model="Berkeley-Earth", scenario="historical")
-    ] = annual_mean_anomaly.temperature.mean(dim="time")
+    ] = monthly_values.temperature.mean(dim="time")
 
-
-# Open example CMIP6 file to get grid information.
-cmip6_ds = xr.open_dataset("cmip6/tas_CESM2_historical_mon.nc")
-lat = cmip6_ds.lat.data
-lon = cmip6_ds.lon.data
-
-combined_ds = combined_ds.sel(
-    latitude=lat,
-    longitude=lon,
-    method="nearest",
-)
+combined_ds["baseline"].attrs["units"] = "1951-1980 baseline (°C)"
+combined_ds["anomaly"].attrs["units"] = "Delta from 1951-1980 baseline (°C)"
 
 for model in models[1:]:
     historical_cmip6_file = f"cmip6/tas_{model}_historical_mon.nc"
@@ -121,31 +117,50 @@ for model in models[1:]:
     ).mean(dim="time")
     historical_cmip6_ds.close()
 
-    combined_ds["baseline"].loc[dict(model=model)] = cmip6_baseline.to_array().squeeze()
+    # Regrid cmip6_baseline to match resolution of combined_ds.
+    cmip6_baseline_regridded = cmip6_baseline.interp(
+        lat=latitude, lon=longitude, method="nearest"
+    )
+    combined_ds["baseline"].loc[dict(model=model)] = (
+        cmip6_baseline_regridded.to_array().squeeze()
+    )
 
     for scenario in scenarios[1:]:
         projected_cmip6_file = f"cmip6/tas_{model}_{scenario}_mon.nc"
+
+        # Ignore files that do not exist and and keep these invalid
+        # model/scenario combinations filled in with -9999.0.
         try:
             projected_cmip6_ds = xr.open_dataset(projected_cmip6_file)
         except:
             continue
+
+        # Transpose dimensions to match the combined_ds.
         projected_cmip6_ds = projected_cmip6_ds.transpose("time", "lat", "lon")
 
         for year in range(2025, 2100 + 1):
-            annual_mean = projected_cmip6_ds.sel(
+            monthly_values = projected_cmip6_ds.sel(
                 time=slice(f"{year}-01-01", f"{year}-12-31")
             )
-            annual_mean = annual_mean.mean(dim="time")
-            anomaly = annual_mean - cmip6_baseline
+            annual_means = monthly_values.mean(dim="time")
+            anomalies = annual_means - cmip6_baseline
 
-            anomaly = xr.DataArray(
-                anomaly.data,
-                dims=["lat", "lon"],
-                coords={"lat": lat, "lon": lon},
+            # Regrid anomalies to match resolution of combined_ds.
+            anomalies_regridded = anomalies.interp(
+                lat=latitude, lon=longitude, method="nearest"
             )
+
+            anomalies_regridded = xr.DataArray(
+                anomalies_regridded.data,
+                dims=["lat", "lon"],
+                coords={"lat": latitude, "lon": longitude},
+            )
+
             combined_ds["anomaly"].loc[
                 dict(year=year, model=model, scenario=scenario)
-            ] = anomaly
+            ] = anomalies_regridded
+
+        projected_cmip6_ds.close()
 
 combined_ds.to_netcdf(
     "temperature_anomalies.nc", mode="w", encoding={"anomaly": {"_FillValue": -9999.0}}
