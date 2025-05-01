@@ -162,6 +162,9 @@ for model in models[1:]:
 
         projected_cmip6_ds.close()
 
+# Sort latitude from high to low for Rasdaman compatibility.
+combined_ds = combined_ds.sortby(combined_ds.latitude, ascending=False)
+
 combined_ds.to_netcdf(
     "temperature_anomalies.nc", mode="w", encoding={"anomaly": {"_FillValue": -9999.0}}
 )
