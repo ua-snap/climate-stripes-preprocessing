@@ -162,6 +162,11 @@ for model in models[1:]:
 
         projected_cmip6_ds.close()
 
+# Transpose latitude/longitude dimensions for Rasdaman WMS compatibility.
+combined_ds = combined_ds.transpose(
+    "model", "scenario", "year", "longitude", "latitude"
+)
+
 # Sort latitude from high to low for Rasdaman compatibility.
 combined_ds = combined_ds.sortby(combined_ds.latitude, ascending=False)
 
