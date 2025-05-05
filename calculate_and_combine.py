@@ -121,6 +121,12 @@ for model in models[1:]:
     cmip6_baseline_regridded = cmip6_baseline.interp(
         lat=latitude, lon=longitude, method="nearest"
     )
+
+    # Rename lat/lon to latitude/longitude to match combined_ds.
+    cmip6_baseline_regridded = cmip6_baseline_regridded.rename(
+        {"lat": "latitude", "lon": "longitude"}
+    )
+
     combined_ds["baseline"].loc[dict(model=model)] = (
         cmip6_baseline_regridded.to_array().squeeze()
     )
