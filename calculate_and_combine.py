@@ -93,6 +93,9 @@ combined_ds = xr.Dataset(
     },
 )
 
+combined_ds["baseline"].attrs["units"] = "1951-1980 baseline (°C)"
+combined_ds["anomaly"].attrs["units"] = "Delta from 1951-1980 baseline (°C)"
+
 berkeley_baseline = berkeley_ds.climatology.mean(dim="month_number")
 combined_ds["baseline"].loc[dict(model="Berkeley-Earth")] = berkeley_baseline
 
@@ -104,9 +107,6 @@ for year in years:
     combined_ds["anomaly"].loc[
         dict(year=year, model="Berkeley-Earth", scenario="historical")
     ] = monthly_values.temperature.mean(dim="time")
-
-combined_ds["baseline"].attrs["units"] = "1951-1980 baseline (°C)"
-combined_ds["anomaly"].attrs["units"] = "Delta from 1951-1980 baseline (°C)"
 
 for model in models[1:]:
     historical_cmip6_file = f"cmip6/tas_{model}_historical_mon.nc"
