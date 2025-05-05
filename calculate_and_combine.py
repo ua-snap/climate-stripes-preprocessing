@@ -162,6 +162,11 @@ for model in models[1:]:
                 coords={"lat": latitude, "lon": longitude},
             )
 
+            # Rename lat/lon to latitude/longitude to match combined_ds.
+            anomalies_regridded = anomalies_regridded.rename(
+                {"lat": "latitude", "lon": "longitude"}
+            )
+
             combined_ds["anomaly"].loc[
                 dict(year=year, model=model, scenario=scenario)
             ] = anomalies_regridded
